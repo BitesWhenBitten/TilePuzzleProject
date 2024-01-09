@@ -5,11 +5,9 @@ using UnityEngine;
 
 public class InputManager : MonoBehaviour
 {
+    //START DEBUG PROPERTIES
 
-    private float mPosX;
-    private float mPosY;
-
-    [SerializeField] private float raycastDistance;
+    //END DEBUG PROPERTIES
 
     //the currently hovered/hit piece
     TilePiece hPiece;
@@ -28,7 +26,9 @@ public class InputManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        HighlightActivePiece();
+
+            HighlightActivePiece();
+
 
     }
 
@@ -42,6 +42,7 @@ public class InputManager : MonoBehaviour
             Camera.main.transform.position,
             dir.direction,
              out outHit);
+            
         #endregion
 
         #region Assign hit tilepiece, Mesh Renderer
@@ -68,41 +69,39 @@ public class InputManager : MonoBehaviour
         if (hPiece)
         {
                 #region Perform the highlighting and switching
-            if (mRenderer && lkRenderer && mRenderer != lkRenderer)
+            
+            //first pass catch
+            if (mRenderer == null || lkRenderer == null)
             {
-                //process turning off previous tile first
-
+                //assign to current
+                lkRenderer = mRenderer;
+                //turn on rendering for the current Mesh renderer
+                mRenderer.enabled = true;
+            }
+            else if (mRenderer != lkRenderer)
+            {
                 //disable render on last known
                 lkRenderer.enabled = false;
                 //re-assign to current
                 lkRenderer = mRenderer;
                 //finally turn on rendering for the current Mesh renderer
                 mRenderer.enabled = true;
-            }
-            else if (lkRenderer && mRenderer != lkRenderer)
+            } 
+            //avoids a no-highlight bug where variables have not changed
+            else if (!mRenderer.enabled)
             {
-                //turn of Mesh renderer for last known
-                lkRenderer.enabled = false;
-            }
-            //first pass catch
-            else if (mRenderer && lkRenderer == null)
-            {
-                //assign to current
-                lkRenderer = mRenderer;
-                //finally turn on rendering for the current Mesh renderer
                 mRenderer.enabled = true;
             }
             #endregion  
         }
         //turn off all renderers if nothing caught
-        else if (lkRenderer || mRenderer)
+        else if (hPiece == null && lkRenderer != null || mRenderer != null)
         {
             lkRenderer.enabled = false;
             mRenderer.enabled = false;
         }
+
         #endregion
-
-
     }
 
     /*private float GetMouseX()
