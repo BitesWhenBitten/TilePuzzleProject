@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Drawing;
 using Unity.VisualScripting;
 using UnityEngine;
 
@@ -16,6 +17,12 @@ public class InputManager : MonoBehaviour
     MeshRenderer mRenderer;
     //The previous Mesh Renderer
     MeshRenderer lkRenderer;
+
+    float alpha = 0;
+    //to track whether we should be counting from 0-1 or 1-0
+    bool reverseAlpha;
+ 
+   [SerializeField] float fadeSpeed = 0.0075f;
 
     // Start is called before the first frame update
     void Start()
@@ -102,15 +109,44 @@ public class InputManager : MonoBehaviour
         }
 
         #endregion
+
+        #region Loop 0-1 Transparency for Flash
+        if(mRenderer.enabled) StartCoroutine(TransparencyFade(mRenderer));
+      #endregion
     }
 
-    /*private float GetMouseX()
+    /// <summary>
+    /// Be sure that the passed renderer has a material using Transparent for rendering mode.
+    /// MT_Highlight is setup for this purpose.
+    /// </summary>
+    /// <param name="renderer"></param>
+    /// <returns></returns>
+    IEnumerator TransparencyFade(MeshRenderer renderer)
     {
-        return Input.GetAxis("Mouse X");
+        while (!reverseAlpha)
+        {
+            alpha -= fadeSpeed * Time.deltaTime;
+
+            //new color cannot be applied directly, make new and assign
+            UnityEngine.Color color = renderer.material.color;
+            renderer.material.color = new UnityEngine.Color(color.r, color.g, color.b, alpha);
+            //begins oscillation from 0-1
+            if(alpha <=0) reverseAlpha = true;
+
+                    yield return null;
+        }
+        while (reverseAlpha)
+            {
+                alpha += fadeSpeed * Time.deltaTime;
+
+            //new color cannot be applied directly, make new and assign
+                UnityEngine.Color color = renderer.material.color;
+                renderer.material.color = new UnityEngine.Color(color.r, color.g, color.b, alpha);
+                //begins oscillation from 1-0
+                if (alpha >= 1) reverseAlpha = false;
+
+                yield return null;
+            }
     }
 
-    private float GetMouseY()
-    {
-        return Input.GetAxis("Mouse Y");
-    }*/
 }
