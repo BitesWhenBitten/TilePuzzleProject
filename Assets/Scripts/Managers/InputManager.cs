@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class InputManager : MonoBehaviour
 {
@@ -12,6 +13,17 @@ public class InputManager : MonoBehaviour
 
     //the currently hovered/hit piece
     TilePiece hPiece;
+
+    
+    TilePiece heldPiece;
+
+    bool holdPiece = false;
+
+  
+    //for returning to spot
+   Vector3 originPOS;
+
+    Vector3 mosInput;
 
     //Mesh Renderer for rMaterial
     MeshRenderer mRenderer;
@@ -33,12 +45,66 @@ public class InputManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-
-            HighlightActivePiece();
+        //mosInput = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        HighlightActivePiece();
 
 
     }
 
+    public void OnClick(InputAction.CallbackContext ctx)
+    {
+        Debug.Log("holding click detected");
+
+        //while held, the hit Piece should follow the mouse
+        //while statement was causing crashes, if statements produces partial functionality...
+        //switch to a toggle so hold is not necessary to hold mouse click
+        if (hPiece != null && !holdPiece)
+        {
+            if (heldPiece == null)
+            {
+                heldPiece = hPiece;
+                originPOS = heldPiece.transform.position;
+            }
+            holdPiece = true;         
+        }
+        //encapsulating logic to swap with another piece, perform a whole raycast...
+        else if (holdPiece)
+        {
+            if (heldPiece != null)
+            {
+                //return to original spot when released
+                heldPiece.transform.SetPositionAndRotation(originPOS, Quaternion.identity);
+                heldPiece = null;
+            }
+        }
+    }
+
+
+
+    public void OnMouseMovement(InputAction.CallbackContext ctx)
+    {
+        Vector2 value = ctx.ReadValue<Vector2>();
+        if (value != null)
+        {
+            
+            mosInput.x = Mathf.Clamp(value.x, -1f, 1f);
+            mosInput.y = Mathf.Clamp(value.y, -1f, 1f);
+
+        }
+        if (heldPiece)
+        {
+
+            //create a new vector reflecting the mouse movement, apply to piece
+            Vector3 newPOS = heldPiece.transform.position;
+            newPOS.x += mosInput.x;
+            newPOS.y += mosInput.y;
+
+            heldPiece.transform.SetPositionAndRotation(newPOS, Quaternion.identity);
+
+            Debug.Log("applied new vector");
+        }
+
+    }
     void HighlightActivePiece()
     {
         #region Set-up Mouse to Screen RayCast
@@ -111,7 +177,7 @@ public class InputManager : MonoBehaviour
         #endregion
 
         #region Loop 0-1 Transparency for Flash
-        if(mRenderer.enabled) StartCoroutine(TransparencyFade(mRenderer));
+        if(mRenderer && mRenderer.enabled) StartCoroutine(TransparencyFade(mRenderer));
       #endregion
     }
 
