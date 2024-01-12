@@ -7,9 +7,9 @@
             "actions": [
                 {
                     "name": "Left Click",
-                    "type": "PassThrough",
+                    "type": "Value",
                     "id": "e4bf9d6a-61f7-41d3-9a9e-d7fbaf589320",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": true

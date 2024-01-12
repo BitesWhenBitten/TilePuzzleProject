@@ -12,18 +12,17 @@ public class InputManager : MonoBehaviour
     //END DEBUG PROPERTIES
 
     //the currently hovered/hit piece
-    TilePiece hPiece;
+    TilePiece hitPiece;
 
-    
+    //the tile being manipulated by the mouse
     TilePiece heldPiece;
-
-    bool holdPiece = false;
-
   
     //for returning to spot
    Vector3 originPOS;
 
     Vector3 mosInput;
+
+    Vector3 mosPOS;
 
     //Mesh Renderer for rMaterial
     MeshRenderer mRenderer;
@@ -45,41 +44,45 @@ public class InputManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        //mosInput = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        Vector3 screenPOS = Mouse.current.position.ReadValue();
+
+        mosPOS = Camera.main.ScreenToWorldPoint(screenPOS);
+        Debug.Log(mosPOS);
         HighlightActivePiece();
 
-
+       
     }
 
+    /// <summary>
+    /// Assigns or clears the the tile piece clicked on as the heldPiece. Original position is notated,
+    /// z plan adjustment made to avoid clipping/fighting.
+    /// </summary>
+    /// <param name="ctx"></param>
     public void OnClick(InputAction.CallbackContext ctx)
     {
-        Debug.Log("holding click detected");
-
+        //Check Input Actions Asset if strange toggling behavior, when configured as 'value'
+        //the held piece works as expected.
         //while held, the hit Piece should follow the mouse
-        //while statement was causing crashes, if statements produces partial functionality...
-        //switch to a toggle so hold is not necessary to hold mouse click
-        if (hPiece != null && !holdPiece)
-        {
-            if (heldPiece == null)
-            {
-                heldPiece = hPiece;
+        //switched to a toggle so it is not necessary to hold mouse click
+       
+        if (hitPiece != null && heldPiece == null)
+        {         
+                heldPiece = hitPiece;
                 originPOS = heldPiece.transform.position;
-            }
-            holdPiece = true;         
+
+            //buffer the held piece towards the screen a bit, only a small change is necessary
+            Vector3 zAdjustedPOS = originPOS;
+            zAdjustedPOS.z -= .01f;
+            heldPiece.transform.SetPositionAndRotation(zAdjustedPOS, Quaternion.identity);
         }
         //encapsulating logic to swap with another piece, perform a whole raycast...
-        else if (holdPiece)
-        {
-            if (heldPiece != null)
-            {
+        else if (heldPiece != null)
+        {   
                 //return to original spot when released
                 heldPiece.transform.SetPositionAndRotation(originPOS, Quaternion.identity);
                 heldPiece = null;
-            }
         }
     }
-
-
 
     public void OnMouseMovement(InputAction.CallbackContext ctx)
     {
@@ -89,6 +92,7 @@ public class InputManager : MonoBehaviour
             
             mosInput.x = Mathf.Clamp(value.x, -1f, 1f);
             mosInput.y = Mathf.Clamp(value.y, -1f, 1f);
+            
 
         }
         if (heldPiece)
@@ -96,8 +100,8 @@ public class InputManager : MonoBehaviour
 
             //create a new vector reflecting the mouse movement, apply to piece
             Vector3 newPOS = heldPiece.transform.position;
-            newPOS.x += mosInput.x;
-            newPOS.y += mosInput.y;
+            newPOS.x = mosPOS.x ;
+            newPOS.y =  mosPOS.y ;
 
             heldPiece.transform.SetPositionAndRotation(newPOS, Quaternion.identity);
 
@@ -123,9 +127,9 @@ public class InputManager : MonoBehaviour
         try
         {
             //Frame is located below the Tile Piece component in hierarchy, move to parent transform
-            hPiece = outHit.collider.gameObject.transform.parent.GetComponent<TilePiece>();
+            hitPiece = outHit.collider.gameObject.transform.parent.GetComponent<TilePiece>();
             //get the frame grid mesh renderer & material
-            GameObject FrameGrid = hPiece.transform.Find("FrameGrid").gameObject;
+            GameObject FrameGrid = hitPiece.transform.Find("FrameGrid").gameObject;
             mRenderer = FrameGrid.GetComponent<MeshRenderer>();
 
         }
@@ -134,12 +138,12 @@ public class InputManager : MonoBehaviour
             //call is annoying, disabling
             //Debug.LogWarning("No tilepiece found");
             //if the hit piece could not be found under current hit, set to null
-            hPiece = null;
+            hitPiece = null;
         }
         #endregion
 
         #region Process Tiles Hit
-        if (hPiece)
+        if (hitPiece)
         {
                 #region Perform the highlighting and switching
             
@@ -168,7 +172,7 @@ public class InputManager : MonoBehaviour
             #endregion  
         }
         //turn off all renderers if nothing caught
-        else if (hPiece == null && lkRenderer != null || mRenderer != null)
+        else if (hitPiece == null && lkRenderer != null || mRenderer != null)
         {
             lkRenderer.enabled = false;
             mRenderer.enabled = false;
