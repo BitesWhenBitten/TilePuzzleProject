@@ -1,3 +1,4 @@
+using Assets.Scripts.Extensions;
 using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
@@ -99,18 +100,30 @@ public class InputManager : MonoBehaviour
 
             //set held piece scale and opacity to semi-transparent
             //opacity:
-            hpMaterial = heldPiece.transform.Find("Quad").GetComponent<MeshRenderer>().material;
+            hpMaterial = heldPiece.transform.Find("Quad").GetComponent<MeshRenderer>().material;       
+            MaterialExtensions.ToTransparentMode(hpMaterial);
+
+            //transparency:
             UnityEngine.Color color = hpMaterial.color;
             hpMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, semiTransparent);
-            //scale
+
+            //scale:
+            heldPiece.transform.localScale = new Vector3 (0.5f, 0.5f, 0.5f);
         }
         //encapsulating logic to swap with another piece, perform a whole raycast...
         else if (heldPiece != null)
         {
             //reset held piece values and material
+            //opacity:
+            MaterialExtensions.ToOpaqueMode(hpMaterial);
+
+            //transparency:
             UnityEngine.Color color = hpMaterial.color;
             hpMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, 1);
             hpMaterial = null;
+
+            //scale:
+            heldPiece.transform.localScale = new Vector3(1f, 1f, 1f);
 
             //reparent to original GP/GO
             heldPiece.transform.SetParent(originGO.transform, false);
@@ -158,8 +171,8 @@ public class InputManager : MonoBehaviour
 
     void HighlightPieces()
     {
-        #region Find Framge Grid Mesh Renderer
-        if (hitPiece && FrameGrid == null)
+        #region Find Frame Grid Mesh Renderer
+        if (hitPiece)
         {
             //Frame is located below the Tile Piece component in hierarchy, move to parent transform
             //get the frame grid mesh renderer
@@ -167,15 +180,20 @@ public class InputManager : MonoBehaviour
             FrameMRenderer = FrameGrid.GetComponent<MeshRenderer>();
 
         }
+        else
+        {
+            FrameGrid = null;
+        }
         #endregion
 
         #region Process Tiles Hit
         if (FrameGrid)
         {
-                #region Perform the highlighting and switching
-            
+            #region Perform the highlighting and switching
+
             //first pass catch
-            if (FrameMRenderer == null || FrameOGMeshRenderer == null)
+            //FrameMRenderer == null || -> deleted from below if
+            if ( FrameOGMeshRenderer == null)
             {
                 //assign to current
                 FrameOGMeshRenderer = FrameMRenderer;
@@ -190,12 +208,13 @@ public class InputManager : MonoBehaviour
                 FrameOGMeshRenderer = FrameMRenderer;
                 //finally turn on rendering for the current Mesh renderer
                 FrameMRenderer.enabled = true;
-            } 
+            }
             //avoids a no-highlight bug where variables have not changed
             else if (!FrameMRenderer.enabled)
             {
                 FrameMRenderer.enabled = true;
             }
+           
             #endregion  
         }
         //turn off all renderers if nothing caught

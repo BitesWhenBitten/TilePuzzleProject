@@ -499,9 +499,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   originGO: {fileID: 0}
-  zOffset: 3.9
+  zOffset: 3.7
   semiTransparent: 0.5
-  fadeSpeed: 0.0075
+  fadeSpeed: 0.02
 --- !u!4 &2067552701
 Transform:
   m_ObjectHideFlags: 0
