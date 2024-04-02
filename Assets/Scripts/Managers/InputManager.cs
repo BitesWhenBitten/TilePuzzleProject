@@ -16,18 +16,33 @@ public class InputManager : MonoBehaviour
 
     //the tile being manipulated by the mouse
     TilePiece heldPiece;
-  
-    //for returning to spot
-   Vector3 originPOS;
 
-    Vector3 mosInput;
+    //current frame grid to highlight
+    GameObject FrameGrid;
 
+    //to return to original
+   [SerializeField] GameObject originGO;
+ 
+    //before cast
+    Vector3 screenMousePOS;
+
+    //must be inputted BEFORE ScreenToWorldPoint cast
+   [SerializeField] float zOffset = 3.9f;
+
+    //post ScreenToWorldPoint
     Vector3 mosPOS;
 
     //Mesh Renderer for rMaterial
-    MeshRenderer mRenderer;
+    MeshRenderer FrameMRenderer;
     //The previous Mesh Renderer
-    MeshRenderer lkRenderer;
+    MeshRenderer FrameOGMeshRenderer;
+
+    //material for held piece
+    Material hpMaterial;
+
+    //for the above material
+   
+    [SerializeField]float semiTransparent = .5f;
 
     float alpha = 0;
     //to track whether we should be counting from 0-1 or 1-0
@@ -38,20 +53,26 @@ public class InputManager : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        
+
     }
 
     // Update is called once per frame
     void Update()
     {
-        Vector3 screenPOS = Mouse.current.position.ReadValue();
+        UpdateMousePOS();
 
-        mosPOS = Camera.main.ScreenToWorldPoint(screenPOS);
-        Debug.Log(mosPOS);
-        HighlightActivePiece();
-
-       
+       if(heldPiece == null) FindTilePiece();
+        HighlightPieces();
+    
     }
+
+    private void UpdateMousePOS()
+    {
+        screenMousePOS = Input.mousePosition;
+        screenMousePOS.z += zOffset;
+        mosPOS = Camera.main.ScreenToWorldPoint(screenMousePOS);
+    }
+
 
     /// <summary>
     /// Assigns or clears the the tile piece clicked on as the heldPiece. Original position is notated,
@@ -67,121 +88,127 @@ public class InputManager : MonoBehaviour
        
         if (hitPiece != null && heldPiece == null)
         {         
-                heldPiece = hitPiece;
-                originPOS = heldPiece.transform.position;
+            heldPiece = hitPiece;
 
-            //buffer the held piece towards the screen a bit, only a small change is necessary
-            Vector3 zAdjustedPOS = originPOS;
-            zAdjustedPOS.z -= .01f;
-            heldPiece.transform.SetPositionAndRotation(zAdjustedPOS, Quaternion.identity);
+            //re-parent to having no parent, store original        
+            originGO = heldPiece.transform.parent.gameObject;
+            heldPiece.transform.SetParent(transform.parent, false);
+
+            //set to mosPOS
+            heldPiece.transform.position = mosPOS;
+
+            //set held piece scale and opacity to semi-transparent
+            //opacity:
+            hpMaterial = heldPiece.transform.Find("Quad").GetComponent<MeshRenderer>().material;
+            UnityEngine.Color color = hpMaterial.color;
+            hpMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, semiTransparent);
+            //scale
         }
         //encapsulating logic to swap with another piece, perform a whole raycast...
         else if (heldPiece != null)
-        {   
-                //return to original spot when released
-                heldPiece.transform.SetPositionAndRotation(originPOS, Quaternion.identity);
-                heldPiece = null;
+        {
+            //reset held piece values and material
+            UnityEngine.Color color = hpMaterial.color;
+            hpMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, 1);
+            hpMaterial = null;
+
+            //reparent to original GP/GO
+            heldPiece.transform.SetParent(originGO.transform, false);
+            heldPiece.transform.position = originGO.transform.position;
+
+            //reset variables
+            originGO = null;
+            heldPiece = null;
         }
     }
 
     public void OnMouseMovement(InputAction.CallbackContext ctx)
     {
-        Vector2 value = ctx.ReadValue<Vector2>();
-        if (value != null)
-        {
-            
-            mosInput.x = Mathf.Clamp(value.x, -1f, 1f);
-            mosInput.y = Mathf.Clamp(value.y, -1f, 1f);
-            
-
-        }
-        if (heldPiece)
-        {
-
-            //create a new vector reflecting the mouse movement, apply to piece
-            Vector3 newPOS = heldPiece.transform.position;
-            newPOS.x = mosPOS.x ;
-            newPOS.y =  mosPOS.y ;
-
-            heldPiece.transform.SetPositionAndRotation(newPOS, Quaternion.identity);
-
-            Debug.Log("applied new vector");
-        }
-
+        if (heldPiece) heldPiece.transform.position = mosPOS;
     }
-    void HighlightActivePiece()
+
+    private void FindTilePiece()
     {
-        #region Set-up Mouse to Screen RayCast
-        Ray dir = Camera.main.ScreenPointToRay(Input.mousePosition);
+        #region Mouse to Screen RayCast
+        Ray dir = Camera.main.ScreenPointToRay(screenMousePOS);
         RaycastHit outHit;
 
         Physics.Raycast(
             Camera.main.transform.position,
             dir.direction,
-             out outHit);
-            
+            out outHit);
+
         #endregion
 
-        #region Assign hit tilepiece, Mesh Renderer
-        //this is scoped with a try/catch to remove null reference errors 
+        //Assign piece if hit
+
         try
         {
-            //Frame is located below the Tile Piece component in hierarchy, move to parent transform
             hitPiece = outHit.collider.gameObject.transform.parent.GetComponent<TilePiece>();
-            //get the frame grid mesh renderer & material
-            GameObject FrameGrid = hitPiece.transform.Find("FrameGrid").gameObject;
-            mRenderer = FrameGrid.GetComponent<MeshRenderer>();
 
         }
         catch (System.Exception)
         {
+            hitPiece = null;
             //call is annoying, disabling
             //Debug.LogWarning("No tilepiece found");
-            //if the hit piece could not be found under current hit, set to null
-            hitPiece = null;
+            //throw;
+        }
+    }
+
+    void HighlightPieces()
+    {
+        #region Find Framge Grid Mesh Renderer
+        if (hitPiece && FrameGrid == null)
+        {
+            //Frame is located below the Tile Piece component in hierarchy, move to parent transform
+            //get the frame grid mesh renderer
+            FrameGrid = hitPiece.transform.Find("FrameGrid").gameObject;
+            FrameMRenderer = FrameGrid.GetComponent<MeshRenderer>();
+
         }
         #endregion
 
         #region Process Tiles Hit
-        if (hitPiece)
+        if (FrameGrid)
         {
                 #region Perform the highlighting and switching
             
             //first pass catch
-            if (mRenderer == null || lkRenderer == null)
+            if (FrameMRenderer == null || FrameOGMeshRenderer == null)
             {
                 //assign to current
-                lkRenderer = mRenderer;
+                FrameOGMeshRenderer = FrameMRenderer;
                 //turn on rendering for the current Mesh renderer
-                mRenderer.enabled = true;
+                FrameMRenderer.enabled = true;
             }
-            else if (mRenderer != lkRenderer)
+            else if (FrameMRenderer != FrameOGMeshRenderer)
             {
                 //disable render on last known
-                lkRenderer.enabled = false;
+                FrameOGMeshRenderer.enabled = false;
                 //re-assign to current
-                lkRenderer = mRenderer;
+                FrameOGMeshRenderer = FrameMRenderer;
                 //finally turn on rendering for the current Mesh renderer
-                mRenderer.enabled = true;
+                FrameMRenderer.enabled = true;
             } 
             //avoids a no-highlight bug where variables have not changed
-            else if (!mRenderer.enabled)
+            else if (!FrameMRenderer.enabled)
             {
-                mRenderer.enabled = true;
+                FrameMRenderer.enabled = true;
             }
             #endregion  
         }
         //turn off all renderers if nothing caught
-        else if (hitPiece == null && lkRenderer != null || mRenderer != null)
+        else if (hitPiece == null && FrameOGMeshRenderer != null || FrameMRenderer != null)
         {
-            lkRenderer.enabled = false;
-            mRenderer.enabled = false;
+            FrameOGMeshRenderer.enabled = false;
+            FrameMRenderer.enabled = false;
         }
 
         #endregion
 
         #region Loop 0-1 Transparency for Flash
-        if(mRenderer && mRenderer.enabled) StartCoroutine(TransparencyFade(mRenderer));
+        if(FrameMRenderer && FrameMRenderer.enabled) StartCoroutine(TransparencyFade(FrameMRenderer));
       #endregion
     }
 

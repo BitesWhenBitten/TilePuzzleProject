@@ -498,6 +498,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 903321853b17a6242ae0155d1f43e508, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  originGO: {fileID: 0}
+  zOffset: 3.9
+  semiTransparent: 0.5
   fadeSpeed: 0.0075
 --- !u!4 &2067552701
 Transform:
@@ -507,7 +510,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2067552698}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.11496511, y: -1.838223, z: 8.102166}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
