@@ -1,5 +1,7 @@
+using Assets.Scripts.Extensions;
 using System.Collections;
 using System.Collections.Generic;
+using System.Drawing;
 using Unity.VisualScripting;
 using UnityEngine;
 using static UnityEngine.UI.Image;
@@ -13,6 +15,7 @@ public class PuzzleManager : MonoBehaviour
      * the tile is being requested at. One of however many tiles matching that grid point
      * will be selected.*/
 
+    #region Grid Related Variables
     [SerializeField] private GameObject gridStart;
     [SerializeField] private GameObject prfbGridPoint;
     [SerializeField] private GameObject[] tileSets;
@@ -23,6 +26,24 @@ public class PuzzleManager : MonoBehaviour
     [SerializeField] private float columnSpacingY;
     [SerializeField] private float columnSpacingX;
     [SerializeField] private GridPoint[,] gridPoints;
+    #endregion
+
+    #region Input Manipulation Variables
+    //the currently hovered/hit piece
+    [SerializeField] public TilePiece hitPiece;
+    //the tile being manipulated by the mouse
+    [SerializeField] public TilePiece heldPiece;
+    //to return to original
+    [SerializeField] public GameObject originGO;
+
+    //material for held piece
+    Material hpMaterial;
+   //for the above material
+   [SerializeField] float semiTransparent = .5f;
+
+    UnityEngine.Color color;
+
+    #endregion
 
     public void OnValidate()
     {
@@ -51,7 +72,7 @@ public class PuzzleManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
+        FindTilePiece();
     }
 
     /// <summary>
@@ -164,17 +185,144 @@ public class PuzzleManager : MonoBehaviour
         }
     }
 
-    public void AssignPiece(TilePiece hitPiece, TilePiece assignablePiece)
+    public void AssignPiece()
     {
-/*        assignablePiece = hitPiece;
+        heldPiece = hitPiece;
 
         //re-parent to having no parent, store original        
-        originGO = assignablePiece.transform.parent.gameObject;
-        assignablePiece.transform.SetParent(transform.parent, false);
+        originGO = heldPiece.transform.parent.gameObject;
+        heldPiece.transform.SetParent(transform.parent, false);
 
         //set to mosPOS
-        assignablePiece.transform.position = InputManager.mosPOS;*/
-        
+        heldPiece.transform.position = GetComponent<InputManager>().mosPOS;
 
+        #region Visual Changes
+        //set held piece scale and opacity to semi-transparent
+        //opacity:
+        hpMaterial = heldPiece.transform.Find("Quad").GetComponent<MeshRenderer>().material;
+        MaterialExtensions.ToTransparentMode(hpMaterial);
+
+        //transparency:
+        color = hpMaterial.color;
+        hpMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, semiTransparent);
+
+        //scale:
+        heldPiece.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+
+        #endregion
+    }
+
+    public void SwapPiece()
+    {
+        TilePiece tempPiece;
+        //put the currently heldPiece on the spot of the hitPiece
+        tempPiece = heldPiece;
+        tempPiece.transform.SetParent(hitPiece.transform.parent.gameObject.transform, false);
+        tempPiece.transform.position = hitPiece.transform.parent.gameObject.transform.position;
+
+        #region Swapped Piece Visual Reset
+        //opacity:
+        MaterialExtensions.ToOpaqueMode(hpMaterial);
+
+        //transparency:
+        color = hpMaterial.color;
+        hpMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, 1);
+        hpMaterial = null;
+
+        //scale:
+        tempPiece.transform.localScale = new Vector3(1f, 1f, 1f);
+        #endregion
+
+        //replace with new
+        heldPiece = hitPiece;
+        heldPiece.transform.SetParent(transform.parent, false);
+
+        //set to mosPOS
+        heldPiece.transform.position = GetComponent<InputManager>().mosPOS;
+
+        #region New Held Piece Visual Changes
+        //set held piece scale and opacity to semi-transparent
+        //opacity:
+        hpMaterial = heldPiece.transform.Find("Quad").GetComponent<MeshRenderer>().material;
+        MaterialExtensions.ToTransparentMode(hpMaterial);
+
+        //transparency:
+        color = hpMaterial.color;
+        hpMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, semiTransparent);
+
+        //scale:
+        heldPiece.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+
+        #endregion
+    }
+
+    public void ResetHeldPiece()
+    {
+        #region Visual Changes
+        //opacity:
+        MaterialExtensions.ToOpaqueMode(hpMaterial);
+
+        //transparency:
+        color = hpMaterial.color;
+        hpMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, 1);
+        hpMaterial = null;
+
+        //scale:
+        heldPiece.transform.localScale = new Vector3(1f, 1f, 1f);
+        #endregion
+
+        //reparent to original GP/GO
+        heldPiece.transform.SetParent(originGO.transform, false);
+        heldPiece.transform.position = originGO.transform.position;
+
+        //reset variables
+        originGO = null;
+        heldPiece = null;
+    }
+
+    private void FindTilePiece()
+    {
+        RaycastHit outHit;
+        Ray dir;
+
+        //perform a raycast for the backgroundPiece and return early if a piece is already held
+
+        if (heldPiece)
+        {
+            // forward of the held piece for direction
+            Physics.Raycast(
+                heldPiece.transform.position,
+                heldPiece.transform.forward,
+                out outHit
+                );
+
+        }
+        else
+        {
+            #region Mouse to Screen RayCast
+            dir = Camera.main.ScreenPointToRay(GetComponent<InputManager>().screenMousePOS);
+
+            Physics.Raycast(
+                Camera.main.transform.position,
+                dir.direction,
+                out outHit);
+
+            #endregion
+        }
+
+        //Assign piece if hit
+
+        try
+        {
+            hitPiece = outHit.collider.gameObject.transform.parent.GetComponent<TilePiece>();
+
+        }
+        catch (System.Exception)
+        {
+            hitPiece = null;
+            //call is annoying, disabling
+            //Debug.LogWarning("No tilepiece found");
+            //throw;
+        }
     }
 }
