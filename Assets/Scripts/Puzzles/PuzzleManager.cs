@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
+using static UnityEngine.UI.Image;
 
 public class PuzzleManager : MonoBehaviour
 {
@@ -161,5 +162,19 @@ public class PuzzleManager : MonoBehaviour
             }
             i++;
         }
+    }
+
+    public void AssignPiece(TilePiece hitPiece, TilePiece assignablePiece)
+    {
+/*        assignablePiece = hitPiece;
+
+        //re-parent to having no parent, store original        
+        originGO = assignablePiece.transform.parent.gameObject;
+        assignablePiece.transform.SetParent(transform.parent, false);
+
+        //set to mosPOS
+        assignablePiece.transform.position = InputManager.mosPOS;*/
+        
+
     }
 }

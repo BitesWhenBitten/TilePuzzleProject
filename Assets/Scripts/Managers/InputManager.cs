@@ -9,14 +9,14 @@ using UnityEngine.InputSystem;
 public class InputManager : MonoBehaviour
 {
     //START DEBUG PROPERTIES
-
     //END DEBUG PROPERTIES
 
     //the currently hovered/hit piece
-    TilePiece hitPiece;
+    [SerializeField] TilePiece hitPiece;
 
     //the tile being manipulated by the mouse
-    TilePiece heldPiece;
+
+   [SerializeField] TilePiece heldPiece;
 
     //current frame grid to highlight
     GameObject FrameGrid;
@@ -31,7 +31,7 @@ public class InputManager : MonoBehaviour
    [SerializeField] float zOffset = 3.9f;
 
     //post ScreenToWorldPoint
-    Vector3 mosPOS;
+    public Vector3 mosPOS;
 
     //Mesh Renderer for rMaterial
     MeshRenderer FrameMRenderer;
@@ -62,7 +62,7 @@ public class InputManager : MonoBehaviour
     {
         UpdateMousePOS();
 
-       if(heldPiece == null) FindTilePiece();
+        FindTilePiece();
         HighlightPieces();
     
     }
@@ -82,57 +82,124 @@ public class InputManager : MonoBehaviour
     /// <param name="ctx"></param>
     public void OnClick(InputAction.CallbackContext ctx)
     {
-        //Check Input Actions Asset if strange toggling behavior, when configured as 'value'
-        //the held piece works as expected.
-        //while held, the hit Piece should follow the mouse
-        //switched to a toggle so it is not necessary to hold mouse click
-       
-        if (hitPiece != null && heldPiece == null)
-        {         
-            heldPiece = hitPiece;
+        if(ctx.performed) {
+            //Check Input Actions Asset if strange toggling behavior, when configured as 'value'
+            //the held piece works as expected.
+            //while held, the hit Piece should follow the mouse
+            //switched to a toggle so it is not necessary to hold mouse click
 
-            //re-parent to having no parent, store original        
-            originGO = heldPiece.transform.parent.gameObject;
-            heldPiece.transform.SetParent(transform.parent, false);
+            //adjust to swap w/ hitPiece if diff than held,
+            //add functionality to return to original if no hit piece
 
-            //set to mosPOS
-            heldPiece.transform.position = mosPOS;
+            UnityEngine.Color color;
 
-            //set held piece scale and opacity to semi-transparent
-            //opacity:
-            hpMaterial = heldPiece.transform.Find("Quad").GetComponent<MeshRenderer>().material;       
-            MaterialExtensions.ToTransparentMode(hpMaterial);
+            //expected when no held piece
+            if (hitPiece != null && heldPiece == null)
+            {
+                //move this to PuzzleManager
+                //PuzzleManager.AssignPiece(hitPiece, heldPiece);
+                heldPiece = hitPiece;
 
-            //transparency:
-            UnityEngine.Color color = hpMaterial.color;
-            hpMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, semiTransparent);
+                //re-parent to having no parent, store original        
+                originGO = heldPiece.transform.parent.gameObject;
+                heldPiece.transform.SetParent(transform.parent, false);
 
-            //scale:
-            heldPiece.transform.localScale = new Vector3 (0.5f, 0.5f, 0.5f);
+                //set to mosPOS
+                heldPiece.transform.position = mosPOS;
+
+                #region Visual Changes
+                //set held piece scale and opacity to semi-transparent
+                //opacity:
+                hpMaterial = heldPiece.transform.Find("Quad").GetComponent<MeshRenderer>().material;
+                MaterialExtensions.ToTransparentMode(hpMaterial);
+
+                //transparency:
+                color = hpMaterial.color;
+                hpMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, semiTransparent);
+
+                //scale:
+                heldPiece.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+
+                #endregion
+
+            }
+            //swap w/ hitPiece 
+            else if (hitPiece != null && hitPiece != heldPiece)
+            {
+                //PuzzleManager.SwapPiece(hitPiece, heldPiece);
+                TilePiece tempPiece;
+                //put the currently heldPiece on the spot of the hitPiece
+                tempPiece = heldPiece;
+                tempPiece.transform.SetParent(hitPiece.transform.parent.gameObject.transform, false);
+                tempPiece.transform.position = hitPiece.transform.parent.gameObject.transform.position;
+
+                #region Swapped Piece Visual Reset
+                //opacity:
+                MaterialExtensions.ToOpaqueMode(hpMaterial);
+
+                //transparency:
+                color = hpMaterial.color;
+                hpMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, 1);
+                hpMaterial = null;
+
+                //scale:
+                tempPiece.transform.localScale = new Vector3(1f, 1f, 1f);
+                #endregion
+
+                //replace with new
+                heldPiece = hitPiece;
+                heldPiece.transform.SetParent(transform.parent, false);
+
+                //set to mosPOS
+                heldPiece.transform.position = mosPOS;
+
+                #region New Held Piece Visual Changes
+                //set held piece scale and opacity to semi-transparent
+                //opacity:
+                hpMaterial = heldPiece.transform.Find("Quad").GetComponent<MeshRenderer>().material;
+                MaterialExtensions.ToTransparentMode(hpMaterial);
+
+                //transparency:
+                color = hpMaterial.color;
+                hpMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, semiTransparent);
+
+                //scale:
+                heldPiece.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+
+                #endregion
+
+            }
+            //return to original spot
+            else if (heldPiece != null)
+            {
+                //move this to PuzzleManager
+                //PuzzleManager.ResetHeldPiece();
+                //reset held piece values and material
+
+                #region Visual Changes
+                //opacity:
+                MaterialExtensions.ToOpaqueMode(hpMaterial);
+
+                //transparency:
+                color = hpMaterial.color;
+                hpMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, 1);
+                hpMaterial = null;
+
+                //scale:
+                heldPiece.transform.localScale = new Vector3(1f, 1f, 1f);
+                #endregion
+
+                //reparent to original GP/GO
+                heldPiece.transform.SetParent(originGO.transform, false);
+                heldPiece.transform.position = originGO.transform.position;
+
+                //reset variables
+                originGO = null;
+                heldPiece = null;
+
+            }
         }
-        //encapsulating logic to swap with another piece, perform a whole raycast...
-        else if (heldPiece != null)
-        {
-            //reset held piece values and material
-            //opacity:
-            MaterialExtensions.ToOpaqueMode(hpMaterial);
-
-            //transparency:
-            UnityEngine.Color color = hpMaterial.color;
-            hpMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, 1);
-            hpMaterial = null;
-
-            //scale:
-            heldPiece.transform.localScale = new Vector3(1f, 1f, 1f);
-
-            //reparent to original GP/GO
-            heldPiece.transform.SetParent(originGO.transform, false);
-            heldPiece.transform.position = originGO.transform.position;
-
-            //reset variables
-            originGO = null;
-            heldPiece = null;
-        }
+        
     }
 
     public void OnMouseMovement(InputAction.CallbackContext ctx)
@@ -142,16 +209,33 @@ public class InputManager : MonoBehaviour
 
     private void FindTilePiece()
     {
-        #region Mouse to Screen RayCast
-        Ray dir = Camera.main.ScreenPointToRay(screenMousePOS);
         RaycastHit outHit;
+        Ray dir;
 
-        Physics.Raycast(
-            Camera.main.transform.position,
-            dir.direction,
-            out outHit);
+        //perform a raycast for the backgroundPiece and return early if a piece is already held
 
-        #endregion
+        if (heldPiece)
+        {
+            // forward of the held piece for direction
+            Physics.Raycast(
+                heldPiece.transform.position,
+                heldPiece.transform.forward,
+                out outHit
+                );
+
+        }
+        else
+        {
+            #region Mouse to Screen RayCast
+            dir = Camera.main.ScreenPointToRay(screenMousePOS);
+
+            Physics.Raycast(
+                Camera.main.transform.position,
+                dir.direction,
+                out outHit);
+
+            #endregion
+        }
 
         //Assign piece if hit
 
