@@ -8,7 +8,19 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 4904992978134859048, guid: b5f059f6e3e1aa441bc5e7cc7fd41236, type: 3}
+      propertyPath: m_CastShadows
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4904992978134859048, guid: b5f059f6e3e1aa441bc5e7cc7fd41236, type: 3}
+      propertyPath: m_Materials.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4904992978134859048, guid: b5f059f6e3e1aa441bc5e7cc7fd41236, type: 3}
       propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: 7c556252e0f70fe4aabfffaf79760278, type: 2}
+    - target: {fileID: 4904992978134859048, guid: b5f059f6e3e1aa441bc5e7cc7fd41236, type: 3}
+      propertyPath: m_Materials.Array.data[1]
       value: 
       objectReference: {fileID: 2100000, guid: 7c556252e0f70fe4aabfffaf79760278, type: 2}
     - target: {fileID: 5561520010912121684, guid: b5f059f6e3e1aa441bc5e7cc7fd41236, type: 3}

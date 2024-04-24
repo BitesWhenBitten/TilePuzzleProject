@@ -1,126 +1,182 @@
+using Assets.Scripts.Extensions;
 using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class InputManager : MonoBehaviour
 {
     //START DEBUG PROPERTIES
-
     //END DEBUG PROPERTIES
 
-    //the currently hovered/hit piece
-    TilePiece hPiece;
+    PuzzleManager puzzleManager;
+
+    #region Mouse Input Variables
+    //before cast
+    [System.NonSerialized] public Vector3 screenMousePOS;
+
+    //must be inputted BEFORE ScreenToWorldPoint cast
+   [SerializeField] float zOffset = 3.9f;
+
+    //post ScreenToWorldPoint
+    [System.NonSerialized] public Vector3 mosPOS;
+    #endregion
+
+    #region Highlight Variables
+    //current frame grid to highlight
+    GameObject FrameGrid;
 
     //Mesh Renderer for rMaterial
-    MeshRenderer mRenderer;
+    MeshRenderer FrameMRenderer;
     //The previous Mesh Renderer
-    MeshRenderer lkRenderer;
+    MeshRenderer FrameOGMeshRenderer;
 
     float alpha = 0;
     //to track whether we should be counting from 0-1 or 1-0
     bool reverseAlpha;
  
    [SerializeField] float fadeSpeed = 0.0075f;
+    #endregion
 
     // Start is called before the first frame update
     void Start()
     {
-        
+        puzzleManager = GetComponent<PuzzleManager>();
     }
 
     // Update is called once per frame
     void Update()
     {
-
-            HighlightActivePiece();
-
-
+        UpdateMousePOS();
+        HighlightPieces();    
+    }
+    private void UpdateMousePOS()
+    {
+        screenMousePOS = Input.mousePosition;
+        screenMousePOS.z += zOffset;
+        mosPOS = Camera.main.ScreenToWorldPoint(screenMousePOS);
     }
 
-    void HighlightActivePiece()
+    /// <summary>
+    /// Assigns, swaps, or clears the the tile piece clicked on as the heldPiece
+    /// </summary>
+    /// <param name="ctx"></param>
+    public void OnClick(InputAction.CallbackContext ctx)
     {
-        #region Set-up Mouse to Screen RayCast
-        Ray dir = Camera.main.ScreenPointToRay(Input.mousePosition);
-        RaycastHit outHit;
+        if(ctx.performed) {
+            //Check Input Actions Asset if strange toggling behavior, when configured as 'value'
+            //the held piece works as expected.
 
-        Physics.Raycast(
-            Camera.main.transform.position,
-            dir.direction,
-             out outHit);
-            
-        #endregion
+            //future click submit button
+            if (puzzleManager.hitPiece == null)
+            {
+                //perform another raycast for the submit button
 
-        #region Assign hit tilepiece, Mesh Renderer
-        //this is scoped with a try/catch to remove null reference errors 
-        try
+                #region Mouse to Screen RayCast
+               Ray dir = Camera.main.ScreenPointToRay(screenMousePOS);
+               RaycastHit outHit;
+
+                Physics.Raycast(
+                    Camera.main.transform.position,
+                    dir.direction,
+                    out outHit);
+                #endregion
+                try
+                {
+                    if (outHit.collider.CompareTag("Submit")) puzzleManager.CheckSubmission();
+                    if (outHit.collider.CompareTag("Restart")) puzzleManager.RestartGame();
+                    if (outHit.collider.CompareTag("Quit")) puzzleManager.QuitGame();
+                }
+                catch (System.Exception)
+                {
+
+                    //throw;
+                }
+            }
+
+
+            //expected when no held piece
+            if (puzzleManager.hitPiece != null && puzzleManager.heldPiece == null)
+            {
+                puzzleManager.AssignPiece();
+            }
+            //swap w/ hitPiece 
+            else if (puzzleManager.hitPiece != null && puzzleManager.hitPiece != puzzleManager.heldPiece)
+            {
+                puzzleManager.SwapPiece();
+            }
+            //return to original spot
+            else if (puzzleManager.heldPiece != null)
+            {
+                puzzleManager.ResetHeldPiece();
+            }
+        }    
+    }
+    public void OnMouseMovement(InputAction.CallbackContext ctx)
+    {
+        if (puzzleManager.heldPiece) puzzleManager.heldPiece.transform.position = mosPOS;
+    }
+    void HighlightPieces()
+    {
+        #region Find Frame Grid Mesh Renderer
+        if (puzzleManager.hitPiece)
         {
-            //Frame is located below the Tile Piece component in hierarchy, move to parent transform
-            hPiece = outHit.collider.gameObject.transform.parent.GetComponent<TilePiece>();
-            //get the frame grid mesh renderer & material
-            GameObject FrameGrid = hPiece.transform.Find("FrameGrid").gameObject;
-            mRenderer = FrameGrid.GetComponent<MeshRenderer>();
+            //Frame is located below the Tile Piece component in hierarchy, look in parent transform
+            //get the frame grid mesh renderer
+            FrameGrid = puzzleManager.hitPiece.transform.Find("FrameGrid").gameObject;
+            FrameMRenderer = FrameGrid.GetComponent<MeshRenderer>();
 
         }
-        catch (System.Exception)
+        else
         {
-            //call is annoying, disabling
-            //Debug.LogWarning("No tilepiece found");
-            //if the hit piece could not be found under current hit, set to null
-            hPiece = null;
+            FrameGrid = null;
         }
         #endregion
 
         #region Process Tiles Hit
-        if (hPiece)
+        if (FrameGrid)
         {
-                #region Perform the highlighting and switching
-            
+            #region Perform the highlighting and switching
+
             //first pass catch
-            if (mRenderer == null || lkRenderer == null)
+            if ( FrameOGMeshRenderer == null)
             {
                 //assign to current
-                lkRenderer = mRenderer;
-                //turn on rendering for the current Mesh renderer
-                mRenderer.enabled = true;
+                FrameOGMeshRenderer = FrameMRenderer;
+                FrameMRenderer.enabled = true;
             }
-            else if (mRenderer != lkRenderer)
+            else if (FrameMRenderer != FrameOGMeshRenderer)
             {
                 //disable render on last known
-                lkRenderer.enabled = false;
+                FrameOGMeshRenderer.enabled = false;
                 //re-assign to current
-                lkRenderer = mRenderer;
+                FrameOGMeshRenderer = FrameMRenderer;
                 //finally turn on rendering for the current Mesh renderer
-                mRenderer.enabled = true;
-            } 
-            //avoids a no-highlight bug where variables have not changed
-            else if (!mRenderer.enabled)
-            {
-                mRenderer.enabled = true;
+                FrameMRenderer.enabled = true;
             }
+            //avoids a no-highlight bug where variables have not changed
+            else if (!FrameMRenderer.enabled)
+            {
+                FrameMRenderer.enabled = true;
+            }
+           
             #endregion  
         }
         //turn off all renderers if nothing caught
-        else if (hPiece == null && lkRenderer != null || mRenderer != null)
+        else if (puzzleManager.hitPiece == null && FrameOGMeshRenderer != null || FrameMRenderer != null)
         {
-            lkRenderer.enabled = false;
-            mRenderer.enabled = false;
+            FrameOGMeshRenderer.enabled = false;
+            FrameMRenderer.enabled = false;
         }
 
         #endregion
 
         #region Loop 0-1 Transparency for Flash
-        if(mRenderer.enabled) StartCoroutine(TransparencyFade(mRenderer));
+        if(FrameMRenderer && FrameMRenderer.enabled) StartCoroutine(TransparencyFade(FrameMRenderer));
       #endregion
     }
-
-    /// <summary>
-    /// Be sure that the passed renderer has a material using Transparent for rendering mode.
-    /// MT_Highlight is setup for this purpose.
-    /// </summary>
-    /// <param name="renderer"></param>
-    /// <returns></returns>
     IEnumerator TransparencyFade(MeshRenderer renderer)
     {
         while (!reverseAlpha)
