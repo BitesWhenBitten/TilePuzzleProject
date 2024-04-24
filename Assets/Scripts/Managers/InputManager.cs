@@ -15,13 +15,13 @@ public class InputManager : MonoBehaviour
 
     #region Mouse Input Variables
     //before cast
-    public Vector3 screenMousePOS;
+    [System.NonSerialized] public Vector3 screenMousePOS;
 
     //must be inputted BEFORE ScreenToWorldPoint cast
    [SerializeField] float zOffset = 3.9f;
 
     //post ScreenToWorldPoint
-    public Vector3 mosPOS;
+    [System.NonSerialized] public Vector3 mosPOS;
     #endregion
 
     #region Highlight Variables
@@ -68,6 +68,34 @@ public class InputManager : MonoBehaviour
         if(ctx.performed) {
             //Check Input Actions Asset if strange toggling behavior, when configured as 'value'
             //the held piece works as expected.
+
+            //future click submit button
+            if (puzzleManager.hitPiece == null)
+            {
+                //perform another raycast for the submit button
+
+                #region Mouse to Screen RayCast
+               Ray dir = Camera.main.ScreenPointToRay(screenMousePOS);
+               RaycastHit outHit;
+
+                Physics.Raycast(
+                    Camera.main.transform.position,
+                    dir.direction,
+                    out outHit);
+                #endregion
+                try
+                {
+                    if (outHit.collider.CompareTag("Submit")) puzzleManager.CheckSubmission();
+                    if (outHit.collider.CompareTag("Restart")) puzzleManager.RestartGame();
+                    if (outHit.collider.CompareTag("Quit")) puzzleManager.QuitGame();
+                }
+                catch (System.Exception)
+                {
+
+                    //throw;
+                }
+            }
+
 
             //expected when no held piece
             if (puzzleManager.hitPiece != null && puzzleManager.heldPiece == null)

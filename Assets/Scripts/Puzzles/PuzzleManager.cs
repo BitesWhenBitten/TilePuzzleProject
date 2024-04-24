@@ -1,9 +1,14 @@
 using Assets.Scripts.Extensions;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
+using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 using static UnityEngine.UI.Image;
 
 public class PuzzleManager : MonoBehaviour
@@ -30,11 +35,11 @@ public class PuzzleManager : MonoBehaviour
 
     #region Input Manipulation Variables
     //the currently hovered/hit piece
-    [SerializeField] public TilePiece hitPiece;
+    [System.NonSerialized] public TilePiece hitPiece;
     //the tile being manipulated by the mouse
-    [SerializeField] public TilePiece heldPiece;
+    [System.NonSerialized] public TilePiece heldPiece;
     //to return to original
-    [SerializeField] public GameObject originGO;
+    [System.NonSerialized] public GameObject originGO;
 
     //material for held piece
     Material hpMaterial;
@@ -43,8 +48,11 @@ public class PuzzleManager : MonoBehaviour
 
     UnityEngine.Color color;
 
+
     #endregion
 
+    //screen messaging variable
+    public TextMeshProUGUI textElement;
     public void OnValidate()
     {
         ValidateTilesets();
@@ -118,44 +126,77 @@ public class PuzzleManager : MonoBehaviour
         return outGrid;
 
     }
-
     private void GenerateTileset(GameObject[] collection, GridPoint[,] targetGrid)
     {
-        //for now we will just generate the full image to check spacing and functionality
         Tileset TS = collection[0].GetComponent<Tileset>();
 
-        //iteration counter
-        int counter = 0;
+        List<TilePiece> tilePieces = TS.tilePieces.ToList();
 
-   /*     if (TS != null)
-        {
-            Debug.Log("Tileset at index 0 found is: " + TS.setName);
-        }*/
-
-        TilePiece[] tilePieces = TS.tilePieces;
-
-        //add randomness later
-
-        //first, let's setup a double for loop, find the square root size
-
+        //first, let's setup a double/nested for loop, find the square root size
         int gridSize = (int)Mathf.Sqrt(targetGrid.Length);
+
         for (int i = 0; i < gridSize; i++)
         {
             for (int y = 0; y < gridSize; y++)
             {
-                //instantiate the desired tile piece, parent to grid point
+                //instantiated piece's position
                 Vector3 pos = targetGrid[i, y].transform.position;
 
-               TilePiece cPiece = Instantiate(
-                   tilePieces[counter], 
-                   pos, 
-                   Quaternion.identity, 
-                   targetGrid[i, y].transform);
-                counter++;
+                //randomness
+                //get the length from the tileset
+                int length = tilePieces.Count;
+
+                //pick a random item from it to instantiate
+                int random = UnityEngine.Random.Range(0, length);
+
+
+                TilePiece cPiece = Instantiate(
+                    tilePieces[random],
+                    pos,
+                    Quaternion.identity,
+                    targetGrid[i, y].transform);
+
+                //delete that random from the tileset
+                tilePieces.RemoveAt(random);
             }
         }
     }
+    public void CheckSubmission()
+    {
+       
 
+        foreach (GridPoint cPoint in gridPoints)
+        {
+            
+            TilePiece cPiece = cPoint.GetComponentInChildren<TilePiece>();
+            if (cPoint.GetGridPosition() != cPiece.tileNumber)
+            {
+               StartCoroutine(ShowTemporaryMessage("Puzzle is incomplete", 3));
+              
+
+                return;
+            }
+
+            GameWon();
+
+        }
+        
+    }
+    private void GameWon()
+    {
+        //winner's message
+        textElement.text = "You have defeated the puzzle, good job!";
+        textElement.enabled = true;
+
+    }
+    public void RestartGame()
+    {
+       SceneManager.LoadScene("Multi-Image Tile Puzzle");
+    }
+    public void QuitGame()
+    {
+        Application.Quit();
+    }
     private void ValidateTilesets()
     {
         if (columnCount == 0 || columnCount == 1 || tileSets == null) return;
@@ -184,7 +225,6 @@ public class PuzzleManager : MonoBehaviour
             i++;
         }
     }
-
     public void AssignPiece()
     {
         heldPiece = hitPiece;
@@ -211,7 +251,6 @@ public class PuzzleManager : MonoBehaviour
 
         #endregion
     }
-
     public void SwapPiece()
     {
         TilePiece tempPiece;
@@ -255,7 +294,6 @@ public class PuzzleManager : MonoBehaviour
 
         #endregion
     }
-
     public void ResetHeldPiece()
     {
         #region Visual Changes
@@ -279,7 +317,6 @@ public class PuzzleManager : MonoBehaviour
         originGO = null;
         heldPiece = null;
     }
-
     private void FindTilePiece()
     {
         RaycastHit outHit;
@@ -325,4 +362,14 @@ public class PuzzleManager : MonoBehaviour
             //throw;
         }
     }
+    IEnumerator ShowTemporaryMessage(string message, float delay)
+    {
+
+        textElement.text = message;
+        textElement.enabled = true;
+        yield return new WaitForSeconds(delay);
+        textElement.enabled = false;
+        textElement.text = "";
+    }
+
 }

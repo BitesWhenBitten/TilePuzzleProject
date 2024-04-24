@@ -4,5 +4,8 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/Multi-Image Tile Puzzle.unity
+    guid: f4377762d19c1b14695fa155af8798a2
   m_configObjects: {}
