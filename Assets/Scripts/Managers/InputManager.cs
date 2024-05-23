@@ -60,7 +60,7 @@ public class InputManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Assigns, swaps, or clears the the tile piece clicked on as the heldPiece
+    /// Assigns, swaps, or clears the the tile piece clicked on as the HeldPiece
     /// </summary>
     /// <param name="ctx"></param>
     public void OnClick(InputAction.CallbackContext ctx)
@@ -70,7 +70,7 @@ public class InputManager : MonoBehaviour
             //the held piece works as expected.
 
             //future click submit button
-            if (puzzleManager.hitPiece == null)
+            if (puzzleManager.HitPiece == null)
             {
                 //perform another raycast for the submit button
 
@@ -98,17 +98,17 @@ public class InputManager : MonoBehaviour
 
 
             //expected when no held piece
-            if (puzzleManager.hitPiece != null && puzzleManager.heldPiece == null)
+            if (puzzleManager.HitPiece != null && puzzleManager.HeldPiece == null)
             {
                 puzzleManager.AssignPiece();
             }
-            //swap w/ hitPiece 
-            else if (puzzleManager.hitPiece != null && puzzleManager.hitPiece != puzzleManager.heldPiece)
+            //swap w/ HitPiece 
+            else if (puzzleManager.HitPiece != null && puzzleManager.HitPiece != puzzleManager.HeldPiece)
             {
                 puzzleManager.SwapPiece();
             }
             //return to original spot
-            else if (puzzleManager.heldPiece != null)
+            else if (puzzleManager.HeldPiece != null)
             {
                 puzzleManager.ResetHeldPiece();
             }
@@ -116,16 +116,16 @@ public class InputManager : MonoBehaviour
     }
     public void OnMouseMovement(InputAction.CallbackContext ctx)
     {
-        if (puzzleManager.heldPiece) puzzleManager.heldPiece.transform.position = mosPOS;
+        if (puzzleManager.HeldPiece) puzzleManager.HeldPiece.transform.position = mosPOS;
     }
     void HighlightPieces()
     {
         #region Find Frame Grid Mesh Renderer
-        if (puzzleManager.hitPiece)
+        if (puzzleManager.HitPiece)
         {
             //Frame is located below the Tile Piece component in hierarchy, look in parent transform
             //get the frame grid mesh renderer
-            FrameGrid = puzzleManager.hitPiece.transform.Find("FrameGrid").gameObject;
+            FrameGrid = puzzleManager.HitPiece.transform.Find("FrameGrid").gameObject;
             FrameMRenderer = FrameGrid.GetComponent<MeshRenderer>();
 
         }
@@ -165,7 +165,7 @@ public class InputManager : MonoBehaviour
             #endregion  
         }
         //turn off all renderers if nothing caught
-        else if (puzzleManager.hitPiece == null && FrameOGMeshRenderer != null || FrameMRenderer != null)
+        else if (puzzleManager.HitPiece == null && FrameOGMeshRenderer != null || FrameMRenderer != null)
         {
             FrameOGMeshRenderer.enabled = false;
             FrameMRenderer.enabled = false;

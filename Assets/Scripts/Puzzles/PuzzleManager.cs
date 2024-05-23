@@ -1,58 +1,56 @@
 using Assets.Scripts.Extensions;
-using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using TMPro;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI;
-using static UnityEngine.UI.Image;
+
 
 public class PuzzleManager : MonoBehaviour
 {
+    
     /*The puzzle manager will create a grid and attach the various tiles to the center
-     * of those grid points. When a tile is clicked, a random piece of the available pieces 
-     * will be selected to display. Below a certain number of pieces being available, the 
-     * puzzle manager will be less random and provide a puzzle piece based on the grid point
-     * the tile is being requested at. One of however many tiles matching that grid point
-     * will be selected.*/
+     * of those grid points. When a tile is clicked it will be held for swapping with other
+     *pieces. Order pieces correctly and submit to win*/
 
     #region Grid Related Variables
     [SerializeField] private GameObject gridStart;
     [SerializeField] private GameObject prfbGridPoint;
     [SerializeField] private GameObject[] tileSets;
+
     [Tooltip("Puzzle Manager only supports SQUARE grids, so make sure your tilesets are squared!")]
     [SerializeField] private int columnCount;
     
-    [Tooltip("Standard unit in Unity is 1 = 1 meter. Therefore value must be between 0.1-0.5")]
+    [Tooltip("Standard unit in Unity is 1 = 1 meter. Suggested spacing is between 0.1-0.5")]
     [SerializeField] private float columnSpacingY;
     [SerializeField] private float columnSpacingX;
     [SerializeField] private GridPoint[,] gridPoints;
     #endregion
 
     #region Input Manipulation Variables
-    //the currently hovered/hit piece
-    [System.NonSerialized] public TilePiece hitPiece;
-    //the tile being manipulated by the mouse
-    [System.NonSerialized] public TilePiece heldPiece;
-    //to return to original
-    [System.NonSerialized] public GameObject originGO;
 
-    //material for held piece
-    Material hpMaterial;
-   //for the above material
-   [SerializeField] float semiTransparent = .5f;
+    [System.NonSerialized] public TilePiece HitPiece;
+    [System.NonSerialized] public TilePiece HeldPiece;
 
-    UnityEngine.Color color;
+    //DESIGN VIOLATION: used only in this class, why public?
+    [System.NonSerialized] public GameObject OriginGO;
 
+    private Material heldPieceMaterial;
+
+    //intended for use w/ above Material
+    [SerializeField] private float semiTransparent = .5f;
+
+    private UnityEngine.Color color;
 
     #endregion
 
-    //screen messaging variable
+    //DESIGN VIOLATION: used only in this class, why public?
     public TextMeshProUGUI textElement;
+
+    /// <summary>
+    /// Ensure tilesets submitted are square as only square tilesets are supported.
+    /// </summary>
     public void OnValidate()
     {
         ValidateTilesets();
@@ -71,14 +69,14 @@ public class PuzzleManager : MonoBehaviour
     }
 
     // Start is called before the first frame update
-    void Start()
+    private void Start()
     {
         gridPoints = GenerateGrid(gridStart.transform, columnCount);
         GenerateTileset(tileSets, gridPoints);
     }
 
     // Update is called once per frame
-    void Update()
+    private void Update()
     {
         FindTilePiece();
     }
@@ -91,19 +89,20 @@ public class PuzzleManager : MonoBehaviour
     /// <returns>An array of GridPoints</returns>
     private GridPoint[,] GenerateGrid(Transform startPoint, int gridSize)
     {
-        //using the transform given and the grid size, create a multi-dim array of grid points
+        //multi-dim array is efficient for making a grid, pre-req positional setup
         GridPoint[,] outGrid = new GridPoint[gridSize, gridSize];
         GameObject GO;
         Vector3 pos = startPoint.position;
         float spX = pos.x;
         float spY = pos.y;
-        float spZ = pos.z;
+
         int gpCount = 1;
 
-        //we are going to create the grid with a nested for loop and place one point at each spot
+        //demonstrate use of nested for loop, efficient for grid creation
         //columns
         for (int i = 0; i < gridSize; i++)
         {
+            //rows
            for (int j  = 0; j < gridSize; j++)
             {
                 #region Create New pos and Instantiate
@@ -126,68 +125,63 @@ public class PuzzleManager : MonoBehaviour
         return outGrid;
 
     }
+   
+    /// <summary>
+    /// Generates the tileset on top of the generated grid.
+    /// </summary>
+    /// <param name="collection"></param>
+    /// <param name="targetGrid"></param>
     private void GenerateTileset(GameObject[] collection, GridPoint[,] targetGrid)
     {
-        Tileset TS = collection[0].GetComponent<Tileset>();
+        Tileset TileSet = collection[0].GetComponent<Tileset>();
 
-        List<TilePiece> tilePieces = TS.tilePieces.ToList();
+        List<TilePiece> tilePieces = TileSet.tilePieces.ToList();
 
-        //first, let's setup a double/nested for loop, find the square root size
+        //need the square root for nested for loop generation
         int gridSize = (int)Mathf.Sqrt(targetGrid.Length);
 
         for (int i = 0; i < gridSize; i++)
         {
             for (int y = 0; y < gridSize; y++)
             {
-                //instantiated piece's position
                 Vector3 pos = targetGrid[i, y].transform.position;
 
-                //randomness
-                //get the length from the tileset
+                // creating somerandomness
                 int length = tilePieces.Count;
+                int random = Random.Range(0, length);
 
-                //pick a random item from it to instantiate
-                int random = UnityEngine.Random.Range(0, length);
-
-
-                TilePiece cPiece = Instantiate(
+                   Instantiate(
                     tilePieces[random],
                     pos,
                     Quaternion.identity,
                     targetGrid[i, y].transform);
 
-                //delete that random from the tileset
+                //delete @ random to correct the array size
                 tilePieces.RemoveAt(random);
             }
         }
     }
+
+    /// <summary>
+    /// Triggers GameWon() if all tiles are correct.
+    /// </summary>
     public void CheckSubmission()
     {
-       
-
         foreach (GridPoint cPoint in gridPoints)
-        {
-            
+        {        
             TilePiece cPiece = cPoint.GetComponentInChildren<TilePiece>();
             if (cPoint.GetGridPosition() != cPiece.tileNumber)
             {
                StartCoroutine(ShowTemporaryMessage("Puzzle is incomplete", 3));
-              
-
                 return;
             }
-
             GameWon();
-
-        }
-        
+        }      
     }
     private void GameWon()
     {
-        //winner's message
         textElement.text = "You have defeated the puzzle, good job!";
         textElement.enabled = true;
-
     }
     public void RestartGame()
     {
@@ -197,139 +191,149 @@ public class PuzzleManager : MonoBehaviour
     {
         Application.Quit();
     }
+
+    /// <summary>
+    /// Ensures tilesets are square, removes tilesets if not squared.
+    /// </summary>
     private void ValidateTilesets()
     {
-        if (columnCount == 0 || columnCount == 1 || tileSets == null) return;
-        //for tracking our iteration, might change this
+        if (columnCount == 0 || columnCount == 1 || tileSets == null) { return; }
         int i = 0;
-        //the goal here is to reject any tileset that is not a matching square for the column count
-        foreach (var tileSet in tileSets)
-        {
-            Tileset CS = tileSet.GetComponent<Tileset>();
 
-            if (CS != null)
+        foreach (GameObject tileSet in tileSets)
+        {
+            Tileset currentSet = tileSet.GetComponent<Tileset>();
+
+            if (currentSet != null)
             {
-                bool isSquared = columnCount == Mathf.Sqrt(CS.tilePieces.Length);
+                bool isSquared = columnCount == Mathf.Sqrt(currentSet.tilePieces.Length);
 
                 if (!isSquared)
                 {
                     //remove the offending item
                     tileSets.SetValue(null, i);
 
-                    //log the error
-                    string msg = $"The tileset input has a length that cannot be squared to using the columnCount. {tileSet.name}";
+                    string msg = $"The tileset input has a length that cannot be " +
+                    $"squared to using the columnCount. {tileSet.name}";
                     Debug.LogError(msg);
                 }
-
             }
             i++;
         }
     }
+
+    /// <summary>
+    /// Makes the hit piece held by the mouse and free-floating.
+    /// </summary>
     public void AssignPiece()
     {
-        heldPiece = hitPiece;
+        HeldPiece = HitPiece;
 
-        //re-parent to having no parent, store original        
-        originGO = heldPiece.transform.parent.gameObject;
-        heldPiece.transform.SetParent(transform.parent, false);
+        //make free-floating       
+        OriginGO = HeldPiece.transform.parent.gameObject;
+        HeldPiece.transform.SetParent(transform.parent, false);
 
-        //set to mosPOS
-        heldPiece.transform.position = GetComponent<InputManager>().mosPOS;
+        HeldPiece.transform.position = GetComponent<InputManager>().mosPOS;
 
         #region Visual Changes
         //set held piece scale and opacity to semi-transparent
-        //opacity:
-        hpMaterial = heldPiece.transform.Find("Quad").GetComponent<MeshRenderer>().material;
-        MaterialExtensions.ToTransparentMode(hpMaterial);
+        heldPieceMaterial = HeldPiece.transform.Find("Quad").GetComponent<MeshRenderer>().material;
+        MaterialExtensions.ToTransparentMode(heldPieceMaterial);
 
         //transparency:
-        color = hpMaterial.color;
-        hpMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, semiTransparent);
+        color = heldPieceMaterial.color;
+        heldPieceMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, semiTransparent);
 
         //scale:
-        heldPiece.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
-
+        HeldPiece.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
         #endregion
     }
+
+    /// <summary>
+    /// Swaps the mouse held piece with the hit piece behind it.
+    /// </summary>
     public void SwapPiece()
     {
         TilePiece tempPiece;
-        //put the currently heldPiece on the spot of the hitPiece
-        tempPiece = heldPiece;
-        tempPiece.transform.SetParent(hitPiece.transform.parent.gameObject.transform, false);
-        tempPiece.transform.position = hitPiece.transform.parent.gameObject.transform.position;
+        //put the currently HeldPiece on the spot of the HitPiece
+        tempPiece = HeldPiece;
+        tempPiece.transform.SetParent(HitPiece.transform.parent.gameObject.transform, false);
+        tempPiece.transform.position = HitPiece.transform.parent.gameObject.transform.position;
 
         #region Swapped Piece Visual Reset
-        //opacity:
-        MaterialExtensions.ToOpaqueMode(hpMaterial);
+        MaterialExtensions.ToOpaqueMode(heldPieceMaterial);
 
         //transparency:
-        color = hpMaterial.color;
-        hpMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, 1);
-        hpMaterial = null;
+        color = heldPieceMaterial.color;
+        heldPieceMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, 1);
+        heldPieceMaterial = null;
 
         //scale:
         tempPiece.transform.localScale = new Vector3(1f, 1f, 1f);
         #endregion
 
         //replace with new
-        heldPiece = hitPiece;
-        heldPiece.transform.SetParent(transform.parent, false);
+        HeldPiece = HitPiece;
+        HeldPiece.transform.SetParent(transform.parent, false);
 
-        //set to mosPOS
-        heldPiece.transform.position = GetComponent<InputManager>().mosPOS;
+        HeldPiece.transform.position = GetComponent<InputManager>().mosPOS;
 
         #region New Held Piece Visual Changes
         //set held piece scale and opacity to semi-transparent
-        //opacity:
-        hpMaterial = heldPiece.transform.Find("Quad").GetComponent<MeshRenderer>().material;
-        MaterialExtensions.ToTransparentMode(hpMaterial);
+        heldPieceMaterial = HeldPiece.transform.Find("Quad").GetComponent<MeshRenderer>().material;
+        MaterialExtensions.ToTransparentMode(heldPieceMaterial);
 
         //transparency:
-        color = hpMaterial.color;
-        hpMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, semiTransparent);
+        color = heldPieceMaterial.color;
+        heldPieceMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, semiTransparent);
 
         //scale:
-        heldPiece.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+        HeldPiece.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
 
         #endregion
     }
+
+    /// <summary>
+    /// Clears any held piece.
+    /// </summary>
     public void ResetHeldPiece()
     {
         #region Visual Changes
-        //opacity:
-        MaterialExtensions.ToOpaqueMode(hpMaterial);
+        MaterialExtensions.ToOpaqueMode(heldPieceMaterial);
 
         //transparency:
-        color = hpMaterial.color;
-        hpMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, 1);
-        hpMaterial = null;
+        color = heldPieceMaterial.color;
+        heldPieceMaterial.color = new UnityEngine.Color(color.r, color.g, color.b, 1);
+        heldPieceMaterial = null;
 
         //scale:
-        heldPiece.transform.localScale = new Vector3(1f, 1f, 1f);
+        HeldPiece.transform.localScale = new Vector3(1f, 1f, 1f);
         #endregion
 
         //reparent to original GP/GO
-        heldPiece.transform.SetParent(originGO.transform, false);
-        heldPiece.transform.position = originGO.transform.position;
+        HeldPiece.transform.SetParent(OriginGO.transform, false);
+        HeldPiece.transform.position = OriginGO.transform.position;
 
         //reset variables
-        originGO = null;
-        heldPiece = null;
+        OriginGO = null;
+        HeldPiece = null;
     }
+
+    /// <summary>
+    /// Performs a raycast for either any piece or for a piece behind the currently
+    /// held piece.
+    /// </summary>
     private void FindTilePiece()
     {
         RaycastHit outHit;
         Ray dir;
 
         //perform a raycast for the backgroundPiece and return early if a piece is already held
-
-        if (heldPiece)
+        if (HeldPiece)
         {
-            // forward of the held piece for direction
             Physics.Raycast(
-                heldPiece.transform.position,
-                heldPiece.transform.forward,
+                HeldPiece.transform.position,
+                HeldPiece.transform.forward,
                 out outHit
                 );
 
@@ -351,14 +355,12 @@ public class PuzzleManager : MonoBehaviour
 
         try
         {
-            hitPiece = outHit.collider.gameObject.transform.parent.GetComponent<TilePiece>();
+            HitPiece = outHit.collider.gameObject.transform.parent.GetComponent<TilePiece>();
 
         }
         catch (System.Exception)
         {
-            hitPiece = null;
-            //call is annoying, disabling
-            //Debug.LogWarning("No tilepiece found");
+            HitPiece = null;
             //throw;
         }
     }
