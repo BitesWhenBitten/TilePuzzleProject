@@ -373,5 +373,4 @@ public class PuzzleManager : MonoBehaviour
         textElement.enabled = false;
         textElement.text = "";
     }
-
 }
