@@ -233,7 +233,7 @@ public class PuzzleManager : MonoBehaviour
         OriginGO = HeldPiece.transform.parent.gameObject;
         HeldPiece.transform.SetParent(transform.parent, false);
 
-        HeldPiece.transform.position = GetComponent<InputManager>().mosPOS;
+        HeldPiece.transform.position = GetComponent<InputManager>().ConvertedMousePOS;
 
         #region Visual Changes
         //set held piece scale and opacity to semi-transparent
@@ -276,7 +276,7 @@ public class PuzzleManager : MonoBehaviour
         HeldPiece = HitPiece;
         HeldPiece.transform.SetParent(transform.parent, false);
 
-        HeldPiece.transform.position = GetComponent<InputManager>().mosPOS;
+        HeldPiece.transform.position = GetComponent<InputManager>().ConvertedMousePOS;
 
         #region New Held Piece Visual Changes
         //set held piece scale and opacity to semi-transparent
@@ -341,7 +341,7 @@ public class PuzzleManager : MonoBehaviour
         else
         {
             #region Mouse to Screen RayCast
-            dir = Camera.main.ScreenPointToRay(GetComponent<InputManager>().screenMousePOS);
+            dir = Camera.main.ScreenPointToRay(GetComponent<InputManager>().RawMousePOS);
 
             Physics.Raycast(
                 Camera.main.transform.position,

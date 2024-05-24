@@ -1,43 +1,30 @@
-using Assets.Scripts.Extensions;
 using System.Collections;
-using System.Collections.Generic;
-using System.Drawing;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class InputManager : MonoBehaviour
-{
-    //START DEBUG PROPERTIES
-    //END DEBUG PROPERTIES
 
-    PuzzleManager puzzleManager;
+public class InputManager : MonoBehaviour
+{ 
+   private PuzzleManager puzzleManager;
 
     #region Mouse Input Variables
-    //before cast
-    [System.NonSerialized] public Vector3 screenMousePOS;
+
+    [System.NonSerialized] public Vector3 RawMousePOS;
 
     //must be inputted BEFORE ScreenToWorldPoint cast
-   [SerializeField] float zOffset = 3.9f;
+   [SerializeField] private float zOffset = 3.9f;
 
-    //post ScreenToWorldPoint
-    [System.NonSerialized] public Vector3 mosPOS;
+    [System.NonSerialized] public Vector3 ConvertedMousePOS;
     #endregion
 
     #region Highlight Variables
-    //current frame grid to highlight
-    GameObject FrameGrid;
 
-    //Mesh Renderer for rMaterial
-    MeshRenderer FrameMRenderer;
-    //The previous Mesh Renderer
-    MeshRenderer FrameOGMeshRenderer;
-
-    float alpha = 0;
-    //to track whether we should be counting from 0-1 or 1-0
-    bool reverseAlpha;
- 
-   [SerializeField] float fadeSpeed = 0.0075f;
+    private GameObject frameGrid;
+    private MeshRenderer frameMRenderer;
+    private MeshRenderer priorFrameMRenderer;
+    private float alpha = 0;
+    private bool isReverseAlpha;
+    [SerializeField] private float fadeSpeed = 0.0075f;
     #endregion
 
     // Start is called before the first frame update
@@ -54,9 +41,9 @@ public class InputManager : MonoBehaviour
     }
     private void UpdateMousePOS()
     {
-        screenMousePOS = Input.mousePosition;
-        screenMousePOS.z += zOffset;
-        mosPOS = Camera.main.ScreenToWorldPoint(screenMousePOS);
+        RawMousePOS = Input.mousePosition;
+        RawMousePOS.z += zOffset;
+        ConvertedMousePOS = Camera.main.ScreenToWorldPoint(RawMousePOS);
     }
 
     /// <summary>
@@ -68,14 +55,12 @@ public class InputManager : MonoBehaviour
         if(ctx.performed) {
             //Check Input Actions Asset if strange toggling behavior, when configured as 'value'
             //the held piece works as expected.
-
-            //future click submit button
             if (puzzleManager.HitPiece == null)
             {
                 //perform another raycast for the submit button
 
                 #region Mouse to Screen RayCast
-               Ray dir = Camera.main.ScreenPointToRay(screenMousePOS);
+               Ray dir = Camera.main.ScreenPointToRay(RawMousePOS);
                RaycastHit outHit;
 
                 Physics.Raycast(
@@ -83,6 +68,7 @@ public class InputManager : MonoBehaviour
                     dir.direction,
                     out outHit);
                 #endregion
+
                 try
                 {
                     if (outHit.collider.CompareTag("Submit")) puzzleManager.CheckSubmission();
@@ -116,7 +102,7 @@ public class InputManager : MonoBehaviour
     }
     public void OnMouseMovement(InputAction.CallbackContext ctx)
     {
-        if (puzzleManager.HeldPiece) puzzleManager.HeldPiece.transform.position = mosPOS;
+        if (puzzleManager.HeldPiece) { puzzleManager.HeldPiece.transform.position = ConvertedMousePOS; }
     }
     void HighlightPieces()
     {
@@ -124,85 +110,87 @@ public class InputManager : MonoBehaviour
         if (puzzleManager.HitPiece)
         {
             //Frame is located below the Tile Piece component in hierarchy, look in parent transform
-            //get the frame grid mesh renderer
-            FrameGrid = puzzleManager.HitPiece.transform.Find("FrameGrid").gameObject;
-            FrameMRenderer = FrameGrid.GetComponent<MeshRenderer>();
+            frameGrid = puzzleManager.HitPiece.transform.Find("FrameGrid").gameObject;
+            frameMRenderer = frameGrid.GetComponent<MeshRenderer>();
 
         }
         else
         {
-            FrameGrid = null;
+            frameGrid = null;
         }
         #endregion
 
         #region Process Tiles Hit
-        if (FrameGrid)
+        if (frameGrid)
         {
             #region Perform the highlighting and switching
 
             //first pass catch
-            if ( FrameOGMeshRenderer == null)
+            if ( priorFrameMRenderer == null)
             {
                 //assign to current
-                FrameOGMeshRenderer = FrameMRenderer;
-                FrameMRenderer.enabled = true;
+                priorFrameMRenderer = frameMRenderer;
+                frameMRenderer.enabled = true;
             }
-            else if (FrameMRenderer != FrameOGMeshRenderer)
+            else if (frameMRenderer != priorFrameMRenderer)
             {
                 //disable render on last known
-                FrameOGMeshRenderer.enabled = false;
+                priorFrameMRenderer.enabled = false;
                 //re-assign to current
-                FrameOGMeshRenderer = FrameMRenderer;
+                priorFrameMRenderer = frameMRenderer;
                 //finally turn on rendering for the current Mesh renderer
-                FrameMRenderer.enabled = true;
+                frameMRenderer.enabled = true;
             }
             //avoids a no-highlight bug where variables have not changed
-            else if (!FrameMRenderer.enabled)
+            else if (!frameMRenderer.enabled)
             {
-                FrameMRenderer.enabled = true;
+                frameMRenderer.enabled = true;
             }
            
             #endregion  
         }
         //turn off all renderers if nothing caught
-        else if (puzzleManager.HitPiece == null && FrameOGMeshRenderer != null || FrameMRenderer != null)
+        else if (puzzleManager.HitPiece == null && priorFrameMRenderer != null || frameMRenderer != null)
         {
-            FrameOGMeshRenderer.enabled = false;
-            FrameMRenderer.enabled = false;
+            priorFrameMRenderer.enabled = false;
+            frameMRenderer.enabled = false;
         }
 
         #endregion
 
         #region Loop 0-1 Transparency for Flash
-        if(FrameMRenderer && FrameMRenderer.enabled) StartCoroutine(TransparencyFade(FrameMRenderer));
-      #endregion
+        if (frameMRenderer && frameMRenderer.enabled) { StartCoroutine(TransparencyFade(frameMRenderer)); }
+        #endregion
     }
+
+    /// <summary>
+    /// Scrolls through the alpha from 0-1 & 1-0 per fadeSpeed.
+    /// </summary>
+    /// <param name="renderer"></param>
+    /// <returns></returns>
     IEnumerator TransparencyFade(MeshRenderer renderer)
     {
-        while (!reverseAlpha)
+        while (!isReverseAlpha)
         {
             alpha -= fadeSpeed * Time.deltaTime;
-
             //new color cannot be applied directly, make new and assign
             UnityEngine.Color color = renderer.material.color;
             renderer.material.color = new UnityEngine.Color(color.r, color.g, color.b, alpha);
-            //begins oscillation from 0-1
-            if(alpha <=0) reverseAlpha = true;
+         
+            if(alpha <=0) isReverseAlpha = true;
 
                     yield return null;
         }
-        while (reverseAlpha)
+       while (isReverseAlpha)
             {
                 alpha += fadeSpeed * Time.deltaTime;
 
             //new color cannot be applied directly, make new and assign
                 UnityEngine.Color color = renderer.material.color;
                 renderer.material.color = new UnityEngine.Color(color.r, color.g, color.b, alpha);
-                //begins oscillation from 1-0
-                if (alpha >= 1) reverseAlpha = false;
+                if (alpha >= 1) isReverseAlpha = false;
 
                 yield return null;
             }
     }
-
 }
