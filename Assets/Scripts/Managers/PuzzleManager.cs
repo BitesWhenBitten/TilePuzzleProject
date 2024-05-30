@@ -9,7 +9,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class PuzzleManager : MonoBehaviour
-{  
+{
     /*The puzzle manager will create a grid and attach the various tiles to the center
      * of those grid points. When a tile is clicked it will be held for swapping with other
      *pieces. Order pieces correctly and submit to win*/
@@ -21,7 +21,7 @@ public class PuzzleManager : MonoBehaviour
 
     [Tooltip("Puzzle Manager only supports SQUARE grids, so make sure your tilesets are squared!")]
     [SerializeField] private int columnCount;
-    
+
     [Tooltip("Standard unit in Unity is 1 = 1 meter. Spacing is clamped between 0.1-0.5")]
     [SerializeField] private float columnSpacingY;
     [SerializeField] private float columnSpacingX;
@@ -43,7 +43,7 @@ public class PuzzleManager : MonoBehaviour
 
     #endregion
 
-    private TextMeshProUGUI textElement;
+    [SerializeField] private TextMeshProUGUI textElement;
 
     /// <summary>
     /// Ensure tilesets submitted are square as only square tilesets are supported.
@@ -183,7 +183,7 @@ public class PuzzleManager : MonoBehaviour
         foreach (GridPoint point in gridPoints)
         {        
             TilePiece piece = point.GetComponentInChildren<TilePiece>();
-            if (point.GetGridPosition() != piece.tileNumber)
+            if (point.GetGridPosition() != piece.GetTileNumber())
             {
                StartCoroutine(ShowTemporaryMessage("Puzzle is incomplete", 3));
                 return;
