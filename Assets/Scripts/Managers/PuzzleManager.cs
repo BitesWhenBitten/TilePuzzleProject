@@ -2,14 +2,14 @@ using Assets.Scripts.Extensions;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using TMPro;
+using Unity.VisualScripting.Dependencies.NCalc;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-
 public class PuzzleManager : MonoBehaviour
-{
-    
+{  
     /*The puzzle manager will create a grid and attach the various tiles to the center
      * of those grid points. When a tile is clicked it will be held for swapping with other
      *pieces. Order pieces correctly and submit to win*/
@@ -22,7 +22,7 @@ public class PuzzleManager : MonoBehaviour
     [Tooltip("Puzzle Manager only supports SQUARE grids, so make sure your tilesets are squared!")]
     [SerializeField] private int columnCount;
     
-    [Tooltip("Standard unit in Unity is 1 = 1 meter. Suggested spacing is between 0.1-0.5")]
+    [Tooltip("Standard unit in Unity is 1 = 1 meter. Spacing is clamped between 0.1-0.5")]
     [SerializeField] private float columnSpacingY;
     [SerializeField] private float columnSpacingX;
     [SerializeField] private GridPoint[,] gridPoints;
@@ -32,9 +32,7 @@ public class PuzzleManager : MonoBehaviour
 
     [System.NonSerialized] public TilePiece HitPiece;
     [System.NonSerialized] public TilePiece HeldPiece;
-
-    //DESIGN VIOLATION: used only in this class, why public?
-    [System.NonSerialized] public GameObject OriginGO;
+    [System.NonSerialized] private GameObject originGO;
 
     private Material heldPieceMaterial;
 
@@ -45,8 +43,7 @@ public class PuzzleManager : MonoBehaviour
 
     #endregion
 
-    //DESIGN VIOLATION: used only in this class, why public?
-    public TextMeshProUGUI textElement;
+    private TextMeshProUGUI textElement;
 
     /// <summary>
     /// Ensure tilesets submitted are square as only square tilesets are supported.
@@ -54,9 +51,16 @@ public class PuzzleManager : MonoBehaviour
     public void OnValidate()
     {
         ValidateTilesets();
+        ClampGridColumnSpacing();
+    }
 
-        //column spacing clamp
-        if(columnSpacingY > 1f || columnSpacingY < 0.1f)
+    /// <summary>
+    /// Limits the spacing along X and Y for generated grids to be between
+    /// 0.1f & 1f w/ 1f being equivalent to 1 meter in world space.
+    /// </summary>
+    private void ClampGridColumnSpacing()
+    {
+        if (columnSpacingY > 1f || columnSpacingY < 0.1f)
         {
             columnSpacingY = Mathf.Clamp(columnSpacingY, 0.1f, 1f);
         }
@@ -65,7 +69,6 @@ public class PuzzleManager : MonoBehaviour
         {
             columnSpacingX = Mathf.Clamp(columnSpacingX, 0.1f, 1f);
         }
-
     }
 
     // Start is called before the first frame update
@@ -97,6 +100,7 @@ public class PuzzleManager : MonoBehaviour
         float spY = pos.y;
 
         int gpCount = 1;
+        GridPoint gridPoint;
 
         //demonstrate use of nested for loop, efficient for grid creation
         //columns
@@ -106,24 +110,27 @@ public class PuzzleManager : MonoBehaviour
            for (int j  = 0; j < gridSize; j++)
             {
                 #region Create New pos and Instantiate
-                pos = startPoint.position + new Vector3((spX + i) * columnSpacingX, (spY - j) * columnSpacingY, 0);
+                pos = 
+                    startPoint.position 
+                    + new Vector3(
+                    (spX + i) * columnSpacingX, 
+                    (spY - j) * columnSpacingY, 
+                                            0);
 
                 GO = Instantiate(prfbGridPoint, startPoint);
                 GO.transform.SetPositionAndRotation(pos, Quaternion.identity);
                 #endregion
 
                 #region Set Grid Point Number, name, and position
-                GridPoint GP = GO.GetComponent<GridPoint>();
-                GP.SetGridPosition(gpCount);
+                gridPoint = GO.GetComponent<GridPoint>();
+                gridPoint.SetGridPosition(gpCount);
                 GO.name = "GP: " + gpCount;
-                outGrid[i, j] = GP;
+                outGrid[i, j] = gridPoint;
                 gpCount++;
                 #endregion
             }
         }
-
         return outGrid;
-
     }
    
     /// <summary>
@@ -131,24 +138,30 @@ public class PuzzleManager : MonoBehaviour
     /// </summary>
     /// <param name="collection"></param>
     /// <param name="targetGrid"></param>
+    /// A GameObject array is being used to hold the TileSet because I intend to return to this
+    /// project to extend the number of puzzles in play at one time.
     private void GenerateTileset(GameObject[] collection, GridPoint[,] targetGrid)
     {
         Tileset TileSet = collection[0].GetComponent<Tileset>();
 
         List<TilePiece> tilePieces = TileSet.tilePieces.ToList();
 
-        //need the square root for nested for loop generation
+        //need the square root for nested for-loop generation
         int gridSize = (int)Mathf.Sqrt(targetGrid.Length);
+
+        Vector3 pos;
+        int length;
+        int random;
 
         for (int i = 0; i < gridSize; i++)
         {
             for (int y = 0; y < gridSize; y++)
             {
-                Vector3 pos = targetGrid[i, y].transform.position;
+                pos = targetGrid[i, y].transform.position;
 
-                // creating somerandomness
-                int length = tilePieces.Count;
-                int random = Random.Range(0, length);
+                // creating some randomness
+                length = tilePieces.Count;
+                random = Random.Range(0, length);
 
                    Instantiate(
                     tilePieces[random],
@@ -167,10 +180,10 @@ public class PuzzleManager : MonoBehaviour
     /// </summary>
     public void CheckSubmission()
     {
-        foreach (GridPoint cPoint in gridPoints)
+        foreach (GridPoint point in gridPoints)
         {        
-            TilePiece cPiece = cPoint.GetComponentInChildren<TilePiece>();
-            if (cPoint.GetGridPosition() != cPiece.tileNumber)
+            TilePiece piece = point.GetComponentInChildren<TilePiece>();
+            if (point.GetGridPosition() != piece.tileNumber)
             {
                StartCoroutine(ShowTemporaryMessage("Puzzle is incomplete", 3));
                 return;
@@ -197,16 +210,20 @@ public class PuzzleManager : MonoBehaviour
     /// </summary>
     private void ValidateTilesets()
     {
-        if (columnCount == 0 || columnCount == 1 || tileSets == null) { return; }
+        if (columnCount < 2) { return; }
+        if (tileSets == null) { return; }
+
+        Tileset currentSet;
+        bool isSquared;
         int i = 0;
 
         foreach (GameObject tileSet in tileSets)
         {
-            Tileset currentSet = tileSet.GetComponent<Tileset>();
+            currentSet = tileSet.GetComponent<Tileset>();
 
             if (currentSet != null)
-            {
-                bool isSquared = columnCount == Mathf.Sqrt(currentSet.tilePieces.Length);
+            {             
+                isSquared = columnCount == Mathf.Sqrt(currentSet.tilePieces.Length);
 
                 if (!isSquared)
                 {
@@ -218,7 +235,7 @@ public class PuzzleManager : MonoBehaviour
                     Debug.LogError(msg);
                 }
             }
-            i++;
+           i++;
         }
     }
 
@@ -230,7 +247,7 @@ public class PuzzleManager : MonoBehaviour
         HeldPiece = HitPiece;
 
         //make free-floating       
-        OriginGO = HeldPiece.transform.parent.gameObject;
+        originGO = HeldPiece.transform.parent.gameObject;
         HeldPiece.transform.SetParent(transform.parent, false);
 
         HeldPiece.transform.position = GetComponent<InputManager>().ConvertedMousePOS;
@@ -310,12 +327,12 @@ public class PuzzleManager : MonoBehaviour
         HeldPiece.transform.localScale = new Vector3(1f, 1f, 1f);
         #endregion
 
-        //reparent to original GP/GO
-        HeldPiece.transform.SetParent(OriginGO.transform, false);
-        HeldPiece.transform.position = OriginGO.transform.position;
+        //reset location & parenting
+        HeldPiece.transform.SetParent(originGO.transform, false);
+        HeldPiece.transform.position = originGO.transform.position;
 
         //reset variables
-        OriginGO = null;
+        originGO = null;
         HeldPiece = null;
     }
 
