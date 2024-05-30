@@ -1,6 +1,7 @@
 using UnityEngine;
 public class TilePiece : MonoBehaviour
 {
-    public int tileNumber = 1;
+    [SerializeField] private int tileNumber = 1;
+    public int GetTileNumber()=>tileNumber;
 
 }
