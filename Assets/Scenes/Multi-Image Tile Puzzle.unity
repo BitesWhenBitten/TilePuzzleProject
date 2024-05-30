@@ -774,9 +774,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9bf1b6ba877dc864a9e2a23983fde692, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  PM: {fileID: 0}
-  FP: {fileID: 0}
-  pos: {x: 0, y: 0, z: 0}
 --- !u!1 &1116502083
 GameObject:
   m_ObjectHideFlags: 0
@@ -1239,8 +1236,8 @@ MonoBehaviour:
   prfbGridPoint: {fileID: 8635781513580292413, guid: c0ddef02b2cd7874c990cc97ec346f8a, type: 3}
   tileSets:
   - {fileID: 601192199244769952, guid: e7fe5612e32f7354d91c4a4b4c089ffc, type: 3}
-  - {fileID: 5536006645157697676, guid: 6bb2a4201c5710f419e5dfdadb26be3d, type: 3}
   - {fileID: 5486504562093283332, guid: 224f48ac769d536428c1c7b34a4037f3, type: 3}
+  - {fileID: 5536006645157697676, guid: 6bb2a4201c5710f419e5dfdadb26be3d, type: 3}
   columnCount: 5
   columnSpacingY: 0.52
   columnSpacingX: 0.51
