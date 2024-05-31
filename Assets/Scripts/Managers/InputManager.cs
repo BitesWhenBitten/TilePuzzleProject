@@ -4,27 +4,25 @@ using UnityEngine.InputSystem;
 
 
 public class InputManager : MonoBehaviour
-{ 
+{
    private PuzzleManager puzzleManager;
 
     #region Mouse Input Variables
-
-    [System.NonSerialized] public Vector3 RawMousePOS;
+    public Vector3 ZAdjustedMousePOS;
 
     //must be inputted BEFORE ScreenToWorldPoint cast
-   [SerializeField] private float zOffset = 3.9f;
-
+    [SerializeField] private float zOffset = 3.9f;
     [System.NonSerialized] public Vector3 ConvertedMousePOS;
     #endregion
 
     #region Highlight Variables
-
-    private GameObject frameGrid;
+    private GameObject frameGrid = null;
     private MeshRenderer frameMRenderer;
     private MeshRenderer priorFrameMRenderer;
     private float alpha = 0;
     private bool isReverseAlpha;
     [SerializeField] private float fadeSpeed = 0.0075f;
+    private UnityEngine.Color color;
     #endregion
 
     // Start is called before the first frame update
@@ -41,9 +39,9 @@ public class InputManager : MonoBehaviour
     }
     private void UpdateMousePOS()
     {
-        RawMousePOS = Input.mousePosition;
-        RawMousePOS.z += zOffset;
-        ConvertedMousePOS = Camera.main.ScreenToWorldPoint(RawMousePOS);
+        ZAdjustedMousePOS = Input.mousePosition;
+        ZAdjustedMousePOS.z += zOffset;
+        ConvertedMousePOS = Camera.main.ScreenToWorldPoint(ZAdjustedMousePOS);
     }
 
     /// <summary>
@@ -52,15 +50,13 @@ public class InputManager : MonoBehaviour
     /// <param name="ctx"></param>
     public void OnClick(InputAction.CallbackContext ctx)
     {
-        if(ctx.performed) {
-            //Check Input Actions Asset if strange toggling behavior, when configured as 'value'
-            //the held piece works as expected.
+        if(ctx.performed) 
+        {
+            //perform another raycast for the buttons
             if (puzzleManager.HitPiece == null)
             {
-                //perform another raycast for the submit button
-
                 #region Mouse to Screen RayCast
-               Ray dir = Camera.main.ScreenPointToRay(RawMousePOS);
+               Ray dir = Camera.main.ScreenPointToRay(ZAdjustedMousePOS);
                RaycastHit outHit;
 
                 Physics.Raycast(
@@ -68,33 +64,43 @@ public class InputManager : MonoBehaviour
                     dir.direction,
                     out outHit);
                 #endregion
-
+                string tag;
+                
                 try
                 {
-                    if (outHit.collider.CompareTag("Submit")) puzzleManager.CheckSubmission();
-                    if (outHit.collider.CompareTag("Restart")) puzzleManager.RestartGame();
-                    if (outHit.collider.CompareTag("Quit")) puzzleManager.QuitGame();
+                    tag = outHit.collider.tag;
                 }
                 catch (System.Exception)
                 {
-
-                    //throw;
+                    tag = null;
+                   // throw;
                 }
+
+                switch (tag)
+                    {
+                        case "Submit":
+                            puzzleManager.CheckSubmission();
+                            break;
+
+                        case "Restart":
+                            puzzleManager.RestartGame();
+                            break;
+
+                        case "Quit":
+                            puzzleManager.QuitGame();
+                            break;
+                    }
             }
 
-
-            //expected when no held piece
-            if (puzzleManager.HitPiece != null && puzzleManager.HeldPiece == null)
+            if (CanAssignPiece())
             {
                 puzzleManager.AssignPiece();
             }
-            //swap w/ HitPiece 
-            else if (puzzleManager.HitPiece != null && puzzleManager.HitPiece != puzzleManager.HeldPiece)
+            else if (CanSwapPiece())
             {
                 puzzleManager.SwapPiece();
             }
-            //return to original spot
-            else if (puzzleManager.HeldPiece != null)
+            else if (CanResetPiece())
             {
                 puzzleManager.ResetHeldPiece();
             }
@@ -102,7 +108,7 @@ public class InputManager : MonoBehaviour
     }
     public void OnMouseMovement(InputAction.CallbackContext ctx)
     {
-        if (puzzleManager.HeldPiece) { puzzleManager.HeldPiece.transform.position = ConvertedMousePOS; }
+        if (puzzleManager.HeldPiece) { puzzleManager.SetHeldPiecePOS(ConvertedMousePOS); }
     }
     void HighlightPieces()
     {
@@ -142,20 +148,21 @@ public class InputManager : MonoBehaviour
                 frameMRenderer.enabled = true;
             }
             //avoids a no-highlight bug where variables have not changed
+            //I cannot find a better way around this, not a fan of this solution
             else if (!frameMRenderer.enabled)
             {
                 frameMRenderer.enabled = true;
             }
-           
-            #endregion  
-        }
-        //turn off all renderers if nothing caught
-        else if (puzzleManager.HitPiece == null && priorFrameMRenderer != null || frameMRenderer != null)
-        {
-            priorFrameMRenderer.enabled = false;
-            frameMRenderer.enabled = false;
-        }
 
+            #endregion
+        }
+        else if (!frameGrid)
+        {
+            if (priorFrameMRenderer != null)
+            {
+                priorFrameMRenderer.enabled = false;
+            }
+        }
         #endregion
 
         #region Loop 0-1 Transparency for Flash
@@ -170,27 +177,39 @@ public class InputManager : MonoBehaviour
     /// <returns></returns>
     IEnumerator TransparencyFade(MeshRenderer renderer)
     {
-        while (!isReverseAlpha)
-        {
-            alpha -= fadeSpeed * Time.deltaTime;
-            //new color cannot be applied directly, make new and assign
-            UnityEngine.Color color = renderer.material.color;
-            renderer.material.color = new UnityEngine.Color(color.r, color.g, color.b, alpha);
-         
-            if(alpha <=0) isReverseAlpha = true;
+        //new color cannot be applied directly, make new and assign
+        color = renderer.material.color;
+        color.a = alpha;
+        renderer.material.color = color;
 
-                    yield return null;
-        }
-       while (isReverseAlpha)
+            while (!isReverseAlpha)
             {
-                alpha += fadeSpeed * Time.deltaTime;
-
-            //new color cannot be applied directly, make new and assign
-                UnityEngine.Color color = renderer.material.color;
-                renderer.material.color = new UnityEngine.Color(color.r, color.g, color.b, alpha);
-                if (alpha >= 1) isReverseAlpha = false;
-
+                alpha -= fadeSpeed * Time.deltaTime;
+                if (alpha <= 0) isReverseAlpha = true;
                 yield return null;
             }
+            while (isReverseAlpha)
+            {
+                alpha += fadeSpeed * Time.deltaTime;
+                if (alpha >= 1) isReverseAlpha = false;
+                yield return null;
+            }
+    }
+    private bool CanAssignPiece()
+    {
+        if (puzzleManager.HitPiece == null) { return false; }
+        if (puzzleManager.HeldPiece != null) { return false; }
+        else return true;
+    }
+    private bool CanSwapPiece()
+    {
+        if(puzzleManager.HitPiece == null) { return false; }
+        if (puzzleManager.HitPiece == puzzleManager.HeldPiece) { return false; }
+        return true;
+    }
+    private bool CanResetPiece()
+    {
+        if (puzzleManager.HeldPiece != null) { return true; }
+        return false;
     }
 }

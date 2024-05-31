@@ -358,7 +358,7 @@ public class PuzzleManager : MonoBehaviour
         else
         {
             #region Mouse to Screen RayCast
-            dir = Camera.main.ScreenPointToRay(GetComponent<InputManager>().RawMousePOS);
+            dir = Camera.main.ScreenPointToRay(GetComponent<InputManager>().ZAdjustedMousePOS);
 
             Physics.Raycast(
                 Camera.main.transform.position,
@@ -389,5 +389,10 @@ public class PuzzleManager : MonoBehaviour
         yield return new WaitForSeconds(delay);
         textElement.enabled = false;
         textElement.text = "";
+    }
+
+    public void SetHeldPiecePOS(Vector3 position)
+    {
+        HeldPiece.transform.position = position;
     }
 }
