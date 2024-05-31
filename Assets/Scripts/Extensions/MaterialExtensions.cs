@@ -1,4 +1,4 @@
-﻿using System.Collections;
+﻿//Sourced and modified from https://forum.unity.com/threads/change-rendering-mode-via-script.476437/
 using UnityEngine;
 
 namespace Assets.Scripts.Extensions
@@ -16,7 +16,6 @@ namespace Assets.Scripts.Extensions
             material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
             material.renderQueue = -1;
         }
-
         public static void ToTransparentMode(this Material material)
         {
             material.SetOverrideTag("RenderType", "Transparent");
